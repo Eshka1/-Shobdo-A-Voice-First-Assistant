@@ -1,5 +1,10 @@
 venv/
-.env
 __pycache__/
 *.pyc
-instance/
+.env
+*.db
+*.log
+.pytest_cache/
+.DS_Store
+cj.txt
+login.json
