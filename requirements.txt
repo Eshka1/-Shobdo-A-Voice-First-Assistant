@@ -1,7 +1,7 @@
 flask
 pymongo
 python-dotenv
-apscheduler
+apscheduler<4
 rapidfuzz
 flask-login
 flask-wtf
@@ -11,3 +11,4 @@ pytest
 requests
 flask-pymongo
 tzdata
+mongomock
