@@ -28,6 +28,8 @@ def create_app(config_name='default'):
 
     from app.routes.auth import auth_bp
     app.register_blueprint(auth_bp)
+    from app.routes.reminders import reminders_bp
+    app.register_blueprint(reminders_bp)
 
     @app.route('/health')
     def health():
