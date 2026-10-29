@@ -48,6 +48,8 @@ class User:
     def to_json(user):
         """Safe for API responses: never includes password_hash."""
         created = user.get('created_at')
+        if created is not None and created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)   # MongoDB returns naive UTC
         return {
             'id': str(user['_id']),
             'name': user['name'],
