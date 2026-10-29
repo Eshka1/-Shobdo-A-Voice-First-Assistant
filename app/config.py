@@ -15,6 +15,7 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
     RATELIMIT_HEADERS_ENABLED = True
+    MAX_CONTENT_LENGTH = 16 * 1024   # reject oversized request bodies (413) before they are read
 
     @classmethod
     def validate(cls):
