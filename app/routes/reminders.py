@@ -4,6 +4,7 @@ from app.extensions import mongo, limiter
 from app.models.reminder import Reminder, STATUSES
 from app.services.confirmation import ConfirmationService, MongoPendingStore
 from app.services.reminder_service import execute_confirmed
+from app.services.scheduler_service import due_for_user, acknowledge
 from app.utils.validators import _check_fields
 
 reminders_bp = Blueprint('reminders', __name__, url_prefix='/api/reminders')
@@ -87,3 +88,24 @@ def complete_reminder(reminder_id):
 @login_required
 def cancel_reminder(reminder_id):
     return _change(reminder_id, 'cancelled')
+
+
+@reminders_bp.route('/due', methods=['GET'])
+@limiter.limit('30 per minute')
+@login_required
+def due_reminders():
+    """Reminders whose time has come and that the user has not acknowledged yet.
+    The owner comes from the session, never from the request."""
+    return jsonify({'reminders': due_for_user(current_user.id)}), 200
+
+
+@reminders_bp.route('/<reminder_id>/ack', methods=['POST'])
+@limiter.limit('30 per minute')
+@login_required
+def acknowledge_reminder(reminder_id):
+    outcome = acknowledge(reminder_id, current_user.id)
+    if outcome == 'not_found':      # missing and "someone else's" look identical
+        return _error('Not found', 'not_found', 404)
+    if outcome == 'conflict':
+        return _error('This reminder cannot be acknowledged', 'not_due', 409)
+    return jsonify({'acknowledged': True}), 200
