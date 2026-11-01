@@ -43,3 +43,73 @@ body {
     outline: 4px solid var(--green);
     outline-offset: 6px;
 }
+
+.lang-switch {
+    border-radius: 16px;
+    box-shadow: 6px 6px 12px var(--shadow-dark),
+        -6px -6px 12px var(--shadow-light);
+}
+
+.lang-btn {
+    min-width: 130px;
+    padding: 0.8rem 1.2rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--green-dark);
+    background: var(--bg);
+    border: 2px solid var(--green);
+}
+
+.btn-check:checked+.lang-btn {
+    background: var(--green);
+    color: #ffffff;
+}
+
+.btn-check:focus-visible+.lang-btn {
+    outline: 4px solid var(--green);
+    outline-offset: 4px;
+}
+
+.reminder-card {
+    text-align: left;
+}
+
+.reminder-task {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.reminder-time {
+    font-size: 1.25rem;
+    color: var(--green-dark);
+}
+
+.action-btn {
+    flex: 1;
+    padding: 0.8rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--green-dark);
+    background: var(--bg);
+    border: 2px solid var(--green);
+}
+
+.action-btn:hover {
+    background: var(--green);
+    color: #ffffff;
+}
+
+.action-btn:focus-visible {
+    outline: 4px solid var(--green);
+    outline-offset: 3px;
+}
+
+.action-cancel {
+    color: #8a3b3b;
+    border-color: #8a3b3b;
+}
+
+.action-cancel:hover {
+    background: #8a3b3b;
+    color: #ffffff;
+}

@@ -3,10 +3,39 @@
 {% block title %}Home - Shobdo{% endblock %}
 
 {% block content %}
-<div class="container text-center mt-5">
+<div class="container text-center mt-4">
+    <div class="btn-group lang-switch" role="group" aria-label="Choose language">
+        <input type="radio" class="btn-check" name="language" id="lang-en" value="en" checked>
+        <label class="btn lang-btn" for="lang-en">English</label>
+
+        <input type="radio" class="btn-check" name="language" id="lang-bn" value="bn">
+        <label class="btn lang-btn" for="lang-bn" lang="bn">বাংলা</label>
+    </div>
+</div>
+
+<div class="container text-center mt-4">
     <div class="neu-card mx-auto">
         <p class="fs-4">Welcome! Press the button to talk to Shobdo.</p>
         <button type="button" class="mic-button" aria-label="Start speaking">🎤<br>Speak</button>
     </div>
 </div>
+<section class="container mt-5 mb-5" aria-labelledby="reminders-heading">
+    <h2 id="reminders-heading" class="text-center h3 mb-4">My reminders</h2>
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            {% for r in reminders %}
+            <div class="neu-card reminder-card mb-4">
+                <div class="reminder-task">{{ r.task }}</div>
+                <div class="reminder-time">{{ r.time }}</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn action-btn">Done</button>
+                    <button type="button" class="btn action-btn action-cancel">Cancel</button>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-center fs-5">No reminders yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
 {% endblock %}
