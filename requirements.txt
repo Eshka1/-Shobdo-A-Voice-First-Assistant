@@ -1,0 +1,14 @@
+flask
+pymongo
+python-dotenv
+apscheduler<4
+rapidfuzz
+flask-login
+flask-wtf
+flask-limiter
+bcrypt
+pytest
+requests
+flask-pymongo
+tzdata
+mongomock
