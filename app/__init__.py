@@ -9,7 +9,7 @@ import logging
 
 def create_app(config_name='default'):
     """Application factory pattern"""
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='../static')
 
     app.config.from_object(config[config_name])
     config[config_name].validate()
@@ -32,6 +32,8 @@ def create_app(config_name='default'):
     app.register_blueprint(reminders_bp)
     from app.routes.admin import admin_bp
     app.register_blueprint(admin_bp)
+    from app.routes.pages import pages_bp
+    app.register_blueprint(pages_bp)
 
     @app.route('/health')
     def health():

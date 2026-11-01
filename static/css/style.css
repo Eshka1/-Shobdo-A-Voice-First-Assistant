@@ -1,0 +1,45 @@
+:root {
+    --bg: #e4efe7;
+    --text: #14301f;
+    --green: #2e7d4f;
+    --green-dark: #1f5c39;
+    --shadow-dark: #b9c8bd;
+    --shadow-light: #ffffff;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.neu-card {
+    max-width: 520px;
+    padding: 2rem;
+    border-radius: 24px;
+    background: var(--bg);
+    box-shadow: 8px 8px 16px var(--shadow-dark),
+        -8px -8px 16px var(--shadow-light);
+}
+
+.mic-button {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 3px solid var(--green);
+    background: var(--bg);
+    color: var(--green-dark);
+    font-size: 1.4rem;
+    font-weight: 700;
+    box-shadow: 8px 8px 16px var(--shadow-dark),
+        -8px -8px 16px var(--shadow-light);
+}
+
+.mic-button:active {
+    box-shadow: inset 6px 6px 12px var(--shadow-dark),
+        inset -6px -6px 12px var(--shadow-light);
+}
+
+.mic-button:focus-visible {
+    outline: 4px solid var(--green);
+    outline-offset: 6px;
+}
