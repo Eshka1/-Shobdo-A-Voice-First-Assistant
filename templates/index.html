@@ -18,6 +18,14 @@
         <p class="fs-4">Welcome! Press the button to talk to Shobdo.</p>
         <button type="button" id="mic-btn" class="mic-button" aria-label="Start speaking">🎤<br>Speak</button>
         <p id="status" class="mt-3 fs-5" role="status" aria-live="polite"></p>
+        <form id="command-form" class="mt-4" autocomplete="off">
+            <label for="command-input" class="form-label fs-5">Or type your request</label>
+            <div class="d-flex gap-2">
+                <input type="text" id="command-input" class="form-control command-input"
+                    placeholder="Remind me to take medicine at 9 PM" maxlength="200">
+                <button type="submit" class="btn action-btn send-btn">Send</button>
+            </div>
+        </form>
     </div>
 </div>
 <section class="container mt-5 mb-5" aria-labelledby="reminders-heading">

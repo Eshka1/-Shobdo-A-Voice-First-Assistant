@@ -113,3 +113,27 @@ body {
     background: #8a3b3b;
     color: #ffffff;
 }
+
+.command-input {
+    padding: 0.8rem;
+    font-size: 1.15rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 2px solid var(--green);
+    border-radius: 12px;
+    box-shadow: inset 4px 4px 8px var(--shadow-dark),
+        inset -4px -4px 8px var(--shadow-light);
+}
+
+.command-input:focus {
+    border-color: var(--green-dark);
+    outline: 4px solid var(--green);
+    outline-offset: 2px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.send-btn {
+    flex: 0 0 auto;
+    padding: 0.8rem 1.4rem;
+}
