@@ -137,3 +137,12 @@ body {
     flex: 0 0 auto;
     padding: 0.8rem 1.4rem;
 }
+
+.speech-controls .action-btn {
+    min-width: 110px;
+}
+
+.action-btn[aria-pressed="true"] {
+    background: var(--green);
+    color: #ffffff;
+}
