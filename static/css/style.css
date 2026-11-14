@@ -1,0 +1,148 @@
+:root {
+    --bg: #e4efe7;
+    --text: #14301f;
+    --green: #2e7d4f;
+    --green-dark: #1f5c39;
+    --shadow-dark: #b9c8bd;
+    --shadow-light: #ffffff;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.neu-card {
+    max-width: 520px;
+    padding: 2rem;
+    border-radius: 24px;
+    background: var(--bg);
+    box-shadow: 8px 8px 16px var(--shadow-dark),
+        -8px -8px 16px var(--shadow-light);
+}
+
+.mic-button {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 3px solid var(--green);
+    background: var(--bg);
+    color: var(--green-dark);
+    font-size: 1.4rem;
+    font-weight: 700;
+    box-shadow: 8px 8px 16px var(--shadow-dark),
+        -8px -8px 16px var(--shadow-light);
+}
+
+.mic-button:active {
+    box-shadow: inset 6px 6px 12px var(--shadow-dark),
+        inset -6px -6px 12px var(--shadow-light);
+}
+
+.mic-button:focus-visible {
+    outline: 4px solid var(--green);
+    outline-offset: 6px;
+}
+
+.lang-switch {
+    border-radius: 16px;
+    box-shadow: 6px 6px 12px var(--shadow-dark),
+        -6px -6px 12px var(--shadow-light);
+}
+
+.lang-btn {
+    min-width: 130px;
+    padding: 0.8rem 1.2rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--green-dark);
+    background: var(--bg);
+    border: 2px solid var(--green);
+}
+
+.btn-check:checked+.lang-btn {
+    background: var(--green);
+    color: #ffffff;
+}
+
+.btn-check:focus-visible+.lang-btn {
+    outline: 4px solid var(--green);
+    outline-offset: 4px;
+}
+
+.reminder-card {
+    text-align: left;
+}
+
+.reminder-task {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.reminder-time {
+    font-size: 1.25rem;
+    color: var(--green-dark);
+}
+
+.action-btn {
+    flex: 1;
+    padding: 0.8rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--green-dark);
+    background: var(--bg);
+    border: 2px solid var(--green);
+}
+
+.action-btn:hover {
+    background: var(--green);
+    color: #ffffff;
+}
+
+.action-btn:focus-visible {
+    outline: 4px solid var(--green);
+    outline-offset: 3px;
+}
+
+.action-cancel {
+    color: #8a3b3b;
+    border-color: #8a3b3b;
+}
+
+.action-cancel:hover {
+    background: #8a3b3b;
+    color: #ffffff;
+}
+
+.command-input {
+    padding: 0.8rem;
+    font-size: 1.15rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 2px solid var(--green);
+    border-radius: 12px;
+    box-shadow: inset 4px 4px 8px var(--shadow-dark),
+        inset -4px -4px 8px var(--shadow-light);
+}
+
+.command-input:focus {
+    border-color: var(--green-dark);
+    outline: 4px solid var(--green);
+    outline-offset: 2px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.send-btn {
+    flex: 0 0 auto;
+    padding: 0.8rem 1.4rem;
+}
+
+.speech-controls .action-btn {
+    min-width: 110px;
+}
+
+.action-btn[aria-pressed="true"] {
+    background: var(--green);
+    color: #ffffff;
+}
