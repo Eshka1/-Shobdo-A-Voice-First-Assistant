@@ -146,3 +146,26 @@ body {
     background: var(--green);
     color: #ffffff;
 }
+
+.mic-button.listening {
+    outline: 6px solid #d62828;
+    animation: mic-pulse 1s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mic-button.listening {
+        animation: none;
+    }
+}

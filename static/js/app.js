@@ -165,16 +165,21 @@ function startListening() {
 
     recognition.onstart = () => {
         isListening = true;
+        micBtn.classList.add("listening");
         statusEl.textContent = t("listening");
     };
 
     recognition.onresult = (event) => {
-        const heard = event.results[0][0].transcript;
+        const heard = event.results[0][0].transcript.trim();
         console.log("Heard:", heard, "confidence:", event.results[0][0].confidence);
+        if (heard === "") {
+            statusEl.textContent = t("noSpeech");
+            speak(t("noSpeech"));
+            return;
+        }
         statusEl.textContent = t("heard") + heard;
         sendCommand(heard);
     };
-
     recognition.onerror = (event) => {
         console.log("Recognition error:", event.error);
         if (event.error === "not-allowed" || event.error === "service-not-allowed") {
@@ -188,10 +193,13 @@ function startListening() {
 
     recognition.onend = () => {
         isListening = false;
+        micBtn.classList.remove("listening");
     };
-
+    isListening = true;
+    micBtn.classList.add("listening");
     recognition.start();
 }
+
 
 micBtn.addEventListener("click", () => {
     if (isListening && recognition) {
