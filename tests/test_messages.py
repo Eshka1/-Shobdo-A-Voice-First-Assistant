@@ -10,6 +10,7 @@ from app.models.message import Message
 from app.routes.auth import auth_bp
 from app.routes.contacts import contacts_bp
 from app.routes.messages import messages_bp
+from app.routes.pages import pages_bp
 from app.routes.reminders import reminders_bp
 from app.routes.voice import voice_bp
 from app.utils.security import init_security
@@ -28,7 +29,7 @@ def make_app(demo=False):
     csrf.init_app(app)
     limiter.init_app(app)
     init_security(app)
-    for bp in (auth_bp, reminders_bp, voice_bp, contacts_bp, messages_bp):
+    for bp in (auth_bp, reminders_bp, voice_bp, contacts_bp, messages_bp, pages_bp):
         app.register_blueprint(bp)
     with app.app_context():
         init_indexes()
@@ -193,3 +194,36 @@ def test_demo_login_never_uses_an_admin_account():
     c = Client(app)
     assert c.post(DEMO).status_code == 503
     assert c.get('/api/auth/me').status_code == 401
+
+
+# ---- demo sign-in when the page is opened -----------------------------------
+def test_opening_the_page_signs_in_the_demo_user_in_demo_mode():
+    c = Client(make_app(demo=True))
+    assert c.get('/api/auth/me').status_code == 401
+    assert c.get('/').status_code == 200
+    c.refresh_token()
+    assert c.get('/api/auth/me').get_json()['user']['email'] == 'demo@shobdo.local'
+    # exactly what the page sends for a typed command, with no login call of its own
+    r = c.post(VOICE, {'text': 'call my son', 'lang': 'en'})
+    assert r.status_code == 200 and r.get_json()['state'] == 'confirm'
+
+
+def test_opening_the_page_does_not_sign_anyone_in_when_demo_mode_is_off(app):
+    c = Client(app)
+    assert c.get('/').status_code == 200
+    assert c.get('/api/auth/me').status_code == 401
+    assert mongo.db.users.count_documents({}) == 0
+
+
+def test_other_urls_never_trigger_the_demo_sign_in():
+    c = Client(make_app(demo=True))
+    for url in ('/api/reminders', '/api/contacts', '/api/auth/me', '/no-such-page'):
+        assert c.get(url).status_code in (401, 404)
+    assert mongo.db.users.count_documents({}) == 0
+
+
+def test_opening_the_page_keeps_a_real_signed_in_user():
+    app = make_app(demo=True)
+    c = Client(app, new_user('alice'))
+    assert c.get('/').status_code == 200
+    assert c.get('/api/auth/me').get_json()['user']['email'] == 'alice@example.com'

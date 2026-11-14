@@ -4,7 +4,7 @@ import bcrypt
 from flask import Blueprint, request, jsonify, session, current_app, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import generate_csrf
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 from app.extensions import mongo, limiter
 from app.models.user import User, LoginUser
 from app.services.demo_data import seed_demo_data
@@ -73,19 +73,8 @@ def login():
                     'csrf_token': generate_csrf()}), 200
 
 
-@auth_bp.route('/demo-login', methods=['POST'])
-@limiter.limit('10 per minute')
-def demo_login():
-    """Sign the browser in as the shared demo user, with no password typed.
-
-    Exists so the demo page does not need a login form (the target users cannot type one).
-    It only works when DEMO_LOGIN_ENABLED=true is set on the server; otherwise it answers 404
-    exactly like a route that does not exist. The request body is ignored: the browser cannot
-    choose which account it gets, and the demo user is always an ordinary 'user', never admin.
-    """
-    if not current_app.config.get('DEMO_LOGIN_ENABLED'):
-        abort(404)
-
+def _demo_user():
+    """Find (or create once) the shared demo user. Returns None if it must not be used."""
     email = current_app.config['DEMO_USER_EMAIL']
     user = User.find_by_email(email)
     if user is None:
@@ -95,13 +84,53 @@ def demo_login():
         except DuplicateKeyError:
             pass                      # another request created it a moment ago
         user = User.find_by_email(email)
-    if user is None or user.get('role') != 'user':
-        return jsonify({'error': 'Demo sign-in is not available'}), 503
+    if user is None or user.get('role') != 'user':     # never sign anyone in as an admin
+        return None
+    return user
 
+
+def _sign_in_demo_user():
+    """Returns the demo user's document, or None if the sign-in did not happen."""
+    user = _demo_user()
+    if user is None:
+        return None
     seed_demo_data(str(user['_id']))
     session.clear()
     login_user(LoginUser(user), remember=False)
     session.permanent = True
+    return user
+
+
+@auth_bp.before_app_request
+def demo_sign_in_on_page_load():
+    """Demo mode only: opening the home page signs the visitor in as the demo user, so the
+    page needs no login form (the target users cannot type one). It does nothing when
+    DEMO_LOGIN_ENABLED is off, for any other URL, or for someone who is already signed in."""
+    if request.endpoint != 'pages.home' or not current_app.config.get('DEMO_LOGIN_ENABLED'):
+        return
+    if current_user.is_authenticated:
+        return
+    try:
+        _sign_in_demo_user()
+    except PyMongoError:
+        pass          # database down: still show the page; the API calls will report the problem
+
+
+@auth_bp.route('/demo-login', methods=['POST'])
+@limiter.limit('10 per minute')
+def demo_login():
+    """Sign the browser in as the shared demo user, with no password typed.
+
+    It only works when DEMO_LOGIN_ENABLED=true is set on the server; otherwise it answers 404
+    exactly like a route that does not exist. The request body is ignored: the browser cannot
+    choose which account it gets, and the demo user is always an ordinary 'user', never admin.
+    (The home page already does this by itself in demo mode; this route is for other clients.)
+    """
+    if not current_app.config.get('DEMO_LOGIN_ENABLED'):
+        abort(404)
+    user = _sign_in_demo_user()
+    if user is None:
+        return jsonify({'error': 'Demo sign-in is not available'}), 503
     return jsonify({'user': User.to_json(user), 'csrf_token': generate_csrf()}), 200
 
 
