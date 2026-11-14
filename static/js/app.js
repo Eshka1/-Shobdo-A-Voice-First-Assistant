@@ -87,6 +87,8 @@ TEXT.en.yes = "Yes";
 TEXT.en.no = "No";
 TEXT.bn.yes = "হ্যাঁ";
 TEXT.bn.no = "না";
+TEXT.en.loginNeeded = "Please sign in to see your reminders.";
+TEXT.bn.loginNeeded = "রিমাইন্ডার দেখতে অনুগ্রহ করে সাইন ইন করুন।";
 let currentLang = "en";
 let slow = false;
 let lastSpoken = "";
@@ -288,7 +290,7 @@ async function loadReminders() {
     if (!res.ok || res.data.reminders.length === 0) {
         const p = document.createElement("p");
         p.className = "text-center fs-5";
-        p.textContent = t("noReminders");
+        p.textContent = res.status === 401 ? t("loginNeeded") : t("noReminders");
         listEl.append(p);
         return;
     }

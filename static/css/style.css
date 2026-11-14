@@ -169,3 +169,9 @@ body {
         animation: none;
     }
 }
+
+@media (max-width: 480px) {
+    #command-form .d-flex {
+        flex-direction: column;
+    }
+}
