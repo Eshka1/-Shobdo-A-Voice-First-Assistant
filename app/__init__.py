@@ -34,6 +34,8 @@ def create_app(config_name='default'):
     app.register_blueprint(admin_bp)
     from app.routes.pages import pages_bp
     app.register_blueprint(pages_bp)
+    from app.routes.voice import voice_bp
+    app.register_blueprint(voice_bp)
 
     @app.route('/health')
     def health():
@@ -59,6 +61,10 @@ def create_app(config_name='default'):
     @app.errorhandler(405)
     def method_not_allowed(error):
         return jsonify({'error': 'Method not allowed'}), 405
+
+    @app.errorhandler(413)
+    def too_large(error):
+        return jsonify({'error': 'Request too large'}), 413
 
     @app.errorhandler(429)
     def too_many(error):
