@@ -301,7 +301,7 @@ def test_script_tags_in_speech_are_neutralised(app):
 
 def test_script_tags_in_the_task_field_are_neutralised(app):
     c = Client(app, new_user('alice'))
-    r = c.post(VOICE, {'text': 'রাত ৯টায়', 'task': '<img src=x onerror=alert(1)>'})
+    r = c.post(VOICE, {'text': 'কাল রাত ৯টায়', 'task': '<img src=x onerror=alert(1)>'})
     assert r.get_json()['status'] == 'confirm'
     assert '<' not in r.get_data(as_text=True) and '>' not in r.get_data(as_text=True)
 
