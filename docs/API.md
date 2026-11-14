@@ -94,12 +94,7 @@ async function sendCommand(text) {
 }
 ```
 
-Sign-in on page load (replaces the Step 25 test login):
-
-```js
-const res = await api("/api/auth/demo-login", "POST");
-if (res.ok) csrfToken = res.data.csrf_token;     // the old token is no longer valid
-```
+Sign-in: when the server has `DEMO_LOGIN_ENABLED=true`, opening the home page (`GET /`) signs the visitor in as the demo user by itself, so the page needs no sign-in code and the Step 25 test login can be removed. `POST /api/auth/demo-login` does the same for other clients.
 
 ## Reminders
 
