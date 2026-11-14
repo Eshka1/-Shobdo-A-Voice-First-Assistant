@@ -83,7 +83,10 @@ Object.assign(TEXT.bn, {
     micError: "কথা শোনা যায়নি। আবার চেষ্টা করুন, অথবা লিখে জানান।",
     noRecognition: "এই ব্রাউজারে কথা শোনা যায় না। অনুগ্রহ করে লিখে জানান।"
 });
-
+TEXT.en.yes = "Yes";
+TEXT.en.no = "No";
+TEXT.bn.yes = "হ্যাঁ";
+TEXT.bn.no = "না";
 let currentLang = "en";
 let slow = false;
 let lastSpoken = "";
@@ -306,6 +309,7 @@ async function sendCommand(text) {
         { text: text, lang: currentLang, pending_id: pendingId });
     if (!res.ok) {
         pendingId = null;
+        showConfirmButtons();
         statusEl.textContent = t("micError");
         speak(t("micError"));
         return;
@@ -313,10 +317,19 @@ async function sendCommand(text) {
     const d = res.data;
     const reply = currentLang === "bn" ? d.message_bn : d.message_en;
     pendingId = d.state === "confirm" ? d.pending_id : null;
+    showConfirmButtons();
     statusEl.textContent = reply;
     speak(reply);
     if (d.state === "done" || d.state === "cancelled") loadReminders();
 }
+const confirmRow = document.getElementById("confirm-row");
+
+function showConfirmButtons() {
+    confirmRow.classList.toggle("d-none", pendingId === null);
+}
+
+document.getElementById("yes-btn").addEventListener("click", () => sendCommand(t("yes")));
+document.getElementById("no-btn").addEventListener("click", () => sendCommand(t("no")));
 // On page load: restore the last chosen language
 if (localStorage.getItem("shobdo-lang") === "bn") {
     document.getElementById("lang-bn").checked = true;
