@@ -27,6 +27,34 @@ _TIME_RE = re.compile(
     r'\s*(?P<mark>টা|a\.m\.|p\.m\.|(?:am|pm)(?![a-z]))?'
 )
 
+# Speech recognition often writes the hour as a word ("নয়টায়", "nine pm") instead of a digit.
+# Bangla: only the "...টায়" form ("at nine o'clock") is converted. Plain "একটা" / "তিনটা" are
+# left alone on purpose, because they also mean "one / three of something" ("একটা ওষুধ").
+_BN_HOURS = {
+    'এক': 1, 'একটা': 1, 'দুই': 2, 'দু': 2, 'তিন': 3, 'চার': 4, 'পাঁচ': 5, 'ছয়': 6, 'ছ': 6,
+    'সাত': 7, 'আট': 8, 'নয়': 9, 'ন': 9, 'দশ': 10, 'এগারো': 11, 'এগার': 11, 'বারো': 12, 'বার': 12,
+}
+_BN_HOURS = {unicodedata.normalize('NFC', word): n for word, n in _BN_HOURS.items()}
+_AT_SUFFIX = unicodedata.normalize('NFC', 'টায়')
+_EN_HOURS = {'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7,
+             'eight': 8, 'nine': 9, 'ten': 10, 'eleven': 11, 'twelve': 12}
+_EN_HOUR_RE = re.compile(r'\b(' + '|'.join(_EN_HOURS) + r')(?=\s*(?:a\.?m|p\.?m)\b)')
+_BN_WORD_RE = re.compile(r'[\u0980-\u09ff]+')
+
+
+def words_to_digits(text):
+    """'নয়টায়' -> '9টায়', 'nine pm' -> '9 pm'. Expects NFC, lowercase text."""
+    def bangla(match):
+        word = match.group(0)
+        if word.endswith(_AT_SUFFIX):
+            hour = _BN_HOURS.get(word[:-len(_AT_SUFFIX)])
+            if hour:
+                return f'{hour}{_AT_SUFFIX}'
+        return word
+    text = _BN_WORD_RE.sub(bangla, text)
+    return _EN_HOUR_RE.sub(lambda m: str(_EN_HOURS[m.group(1)]), text)
+
+
 MESSAGES = {
     'missing_time': ('কোন সময়ে মনে করিয়ে দেব?',
                      'What time should I remind you?'),
@@ -87,7 +115,7 @@ def parse_datetime(text, now=None):
       {'status': 'clarify', 'code': ..., 'question_bn': ..., 'question_en': ...}
     """
     now = now.astimezone(TZ) if now else datetime.now(TZ)
-    t = unicodedata.normalize('NFC', text or '').translate(_BN_DIGITS).lower()
+    t = words_to_digits(unicodedata.normalize('NFC', text or '').translate(_BN_DIGITS).lower())
     tokens = re.findall(r'[ঀ-৿a-z0-9:.]+', t)
 
     day_offset = None

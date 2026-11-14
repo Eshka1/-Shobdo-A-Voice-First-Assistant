@@ -10,5 +10,8 @@ login_manager = LoginManager()
 csrf = CSRFProtect()
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
+    # Per client IP. Generous enough for one person using the page all day (the page polls
+    # and reloads the reminder list), strict enough to stop a script. Sensitive routes
+    # (login, register, voice-command, reminder creation) set their own tighter limits.
+    default_limits=["3000 per day", "600 per hour"]
 )

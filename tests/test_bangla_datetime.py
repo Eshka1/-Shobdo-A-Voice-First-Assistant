@@ -19,11 +19,18 @@ OK_CASES = [
     ('আগামীকাল দুপুর ২টায়', at(30, 14)),
     ('পরশু দুপুর ২টায়', at(31, 14)),
     ('সকাল ১১টায় ওষুধ', at(29, 11)),   # proves "সকাল" is not read as "কাল"
+    ('আজ রাত নয়টায় ওষুধ', at(29, 21)),            # hour spoken as a word
+    ('কাল সকাল সাড়ে দশটায় হাঁটা', at(30, 10, 30)),
+    ('remind me tomorrow at nine PM', at(30, 21)),
+    ('tomorrow at seven a.m.', at(30, 7)),
+    ('আজ রাত ৯টায় একটা ওষুধ', at(29, 21)),         # "একটা" = one tablet, not one o'clock
 ]
 
 CLARIFY_CASES = [
     ('৯টায় ওষুধ', 'need_period'),
     ('কাল ওষুধ খেতে হবে', 'missing_time'),
+    ('কাল একটা ওষুধ খেতে হবে', 'missing_time'),       # a quantity is never read as a time
+    ('call one friend tomorrow', 'missing_time'),
     ('আজ সকাল ৯টা', 'past'),
     ('সকাল ৯টায়', 'past_today'),
     ('কাল রাত ১২টায়', 'unclear_time'),
