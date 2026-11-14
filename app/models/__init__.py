@@ -18,4 +18,13 @@ def init_indexes():
         partialFilterExpression={'idempotency_key': {'$type': 'string'}, 'status': 'pending'},
     )
 
+    # Pending actions: fast double-tap lookup, and MongoDB deletes them one day after they
+    # expire (TTL index), so the collection cannot grow forever.
+    mongo.db.pending_actions.create_index([('user_id', 1), ('idempotency_key', 1), ('state', 1)])
+    mongo.db.pending_actions.create_index('expires_at', expireAfterSeconds=24 * 60 * 60)
+
+    # Contacts and messages: always looked up by owner.
+    mongo.db.contacts.create_index([('user_id', 1), ('name_key', 1)], unique=True)
+    mongo.db.messages.create_index([('user_id', 1), ('received_at', -1)])
+
     print("Database indexes created successfully")

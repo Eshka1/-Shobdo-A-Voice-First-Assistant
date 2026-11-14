@@ -15,6 +15,11 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
     RATELIMIT_HEADERS_ENABLED = True
+    # Demo sign-in (POST /api/auth/demo-login). OFF unless DEMO_LOGIN_ENABLED=true in .env.
+    DEMO_LOGIN_ENABLED = os.environ.get('DEMO_LOGIN_ENABLED', '').strip().lower() == 'true'
+    DEMO_USER_EMAIL = os.environ.get('DEMO_USER_EMAIL', 'demo@shobdo.local').strip().lower()
+    # Set TRUST_PROXY=true only when the app runs behind ONE reverse proxy (Render, Railway...).
+    TRUST_PROXY = os.environ.get('TRUST_PROXY', '').strip().lower() == 'true'
     MAX_CONTENT_LENGTH = 16 * 1024   # reject oversized request bodies (413) before they are read
 
     @classmethod

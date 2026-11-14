@@ -10,7 +10,9 @@ from datetime import datetime, timezone
 
 from app.services.bangla_datetime import TZ, parse_datetime
 from app.services.confirmation import classify_reply
+from app.services.contact_service import match_contact
 from app.services.intent import interpret, normalize, tokenize
+from app.services.message_service import describe_message
 from app.services.reminder_service import MAX_TITLE_LENGTH, execute_confirmed
 
 UTC = timezone.utc
@@ -34,6 +36,12 @@ MESSAGES = {
     'invalid': ('রিমাইন্ডারটা সঠিক নয়। আবার বলুন।', 'That reminder was not valid. Please say it again.'),
     'error': ('কিছু একটা ভুল হয়েছে। আবার বলুন।', 'Something went wrong. Please say it again.'),
     'silent': ('', ''),
+    'dialer': ('ডায়ালার খুলছি। কল করতে সবুজ বোতাম চাপুন।',
+               'Opening the dialer. Press the call button to start the call.'),
+    'missing_contact': ('কাকে ফোন করব?', 'Who should I call?'),
+    'contact_not_found': ('এই নামে কাউকে পাইনি। নামটা আবার বলুন।',
+                          "I couldn't find that name in your contacts. Please say the name again."),
+    'contact_gone': ('এই নম্বরটা আর আপনার তালিকায় নেই।', 'That contact is no longer in your list.'),
 }
 
 
@@ -126,7 +134,9 @@ def _propose_reminder(confirmations, user_id, task, remind_at, assumed_today, no
                 expires_in_seconds=proposed['expires_in_seconds']), 200
 
 
-def _execute(confirmations, user_id, released, now):
+def _execute(confirmations, user_id, released, now, directory=None):
+    if released.get('type') == 'call':
+        return _execute_call(confirmations, directory, user_id, released)
     outcome = execute_confirmed(confirmations, user_id, released, now=now)
     if outcome['result'] == 'created':
         return _say('done', MESSAGES['done'], intent='reminder', reminder=outcome['reminder']), 200
@@ -135,10 +145,10 @@ def _execute(confirmations, user_id, released, now):
     return _say('failed', MESSAGES.get(code, MESSAGES['error']), code=code), http
 
 
-def _from_confirmation(confirmations, user_id, released, now):
+def _from_confirmation(confirmations, user_id, released, now, directory=None):
     result = released['result']
     if result == 'execute':
-        return _execute(confirmations, user_id, released, now)
+        return _execute(confirmations, user_id, released, now, directory)
     pair = (released.get('question_bn') or MESSAGES['error'][0],
             released.get('question_en') or MESSAGES['error'][1])
     if result == 'cancelled':
@@ -150,8 +160,65 @@ def _from_confirmation(confirmations, user_id, released, now):
     return _say('failed', pair, code=result), 200      # expired, not_found, duplicate, too_late, error
 
 
+# ------------------------------------------------------------ calls and messages
+def _ask_contact(code, pair, choices=None):
+    """A question whose answer is a NAME. 'awaiting' tells the browser to send it back."""
+    out = _say('clarify', pair, intent='call', code=code, awaiting='contact')
+    if choices:
+        out['choices'] = choices
+    return out, 200
+
+
+def _propose_call(confirmations, directory, user_id, target, now, replaces=None):
+    """Find the contact and READ IT BACK. Nothing is dialled here, or anywhere on the server."""
+    if not target:
+        return _ask_contact('missing_contact', MESSAGES['missing_contact'])
+    found = match_contact(directory.contacts(user_id), target)
+    if found['result'] == 'none':
+        return _ask_contact('contact_not_found', MESSAGES['contact_not_found'])
+    if found['result'] == 'many':                 # never pick silently between similar names
+        names = [c['name'] for c in found['matches']]
+        return _ask_contact('ambiguous_contact',
+                            (f"কাকে ফোন করব? {', নাকি '.join(names)}?",
+                             f"Who should I call? {', or '.join(names)}?"), choices=names)
+    contact = found['matches'][0]
+    name = contact['name']
+    proposed = confirmations.propose(
+        user_id, 'call', {'contact_id': str(contact['_id']), 'name': name},
+        f'"{name}"-কে ফোন করার জন্য ডায়ালার খুলব। ঠিক আছে?',
+        f'I will open the dialer to call "{name}". Is that correct?',
+        now=now, replaces=replaces)
+    return _say('confirm', (proposed['summary_bn'], proposed['summary_en']),
+                intent='call', pending_id=proposed['pending_id'], contact={'name': name},
+                expires_in_seconds=proposed['expires_in_seconds']), 200
+
+
+def _execute_call(confirmations, directory, user_id, released):
+    """After a confirmed "yes": hand the number to the browser, which opens the phone's dialer.
+    The USER still presses the call button. The server never places a call."""
+    params = released.get('params') or {}
+    contact = directory.contact(params.get('contact_id'), user_id) if directory else None
+    if contact is None:               # deleted while the question was being asked
+        confirmations.fail(user_id, released['pending_id'], 'contact_gone')
+        return _say('failed', MESSAGES['contact_gone'], code='contact_gone'), 200
+    confirmations.complete(user_id, released['pending_id'])
+    return _say('done', MESSAGES['dialer'], intent='call', action='open_dialer',
+                contact={'name': contact['name'], 'phone': contact['phone']},
+                tel=f"tel:{contact['phone']}"), 200
+
+
+def _read_next_message(directory, user_id):
+    """Speak the user's oldest unread message. The message text is data only: it goes into
+    the spoken sentence and is never interpreted as a command (see message_service)."""
+    doc = directory.take_next_message(user_id)
+    out = _say('done', describe_message(doc), intent='read_message')
+    out['message'] = None if doc is None else {'id': str(doc['_id']), 'sender': doc['sender'],
+                                               'text': doc['text']}
+    return out, 200
+
+
 # ------------------------------------------------------------------ the flows
-def _handle_new_command(confirmations, user_id, text, now):
+def _handle_new_command(confirmations, user_id, text, now, directory=None):
     parsed = interpret(text, now=now)
     if parsed['status'] == 'clarify':
         return _clarify_payload(parsed), 200
@@ -161,7 +228,25 @@ def _handle_new_command(confirmations, user_id, text, now):
                                  parsed['assumed_today'], now)
     if intent in CONTROLS:
         return _say('control', MESSAGES['silent'], intent=intent, action=intent), 200
-    return _say('unsupported', MESSAGES['unsupported'], intent=intent), 200   # call / read_message later
+    if directory is not None:
+        if intent == 'call':
+            return _propose_call(confirmations, directory, user_id, parsed.get('target', ''), now)
+        if intent == 'read_message':
+            return _read_next_message(directory, user_id)
+    return _say('unsupported', MESSAGES['unsupported'], intent=intent), 200
+
+
+def _handle_contact_answer(confirmations, user_id, text, now, directory):
+    """The previous reply asked "who should I call?". A full new command still wins;
+    anything else is treated as the name."""
+    parsed = interpret(text, now=now)
+    if parsed['intent'] != 'unknown':
+        return _handle_new_command(confirmations, user_id, text, now, directory)
+    if parsed['code'] != 'unknown_command':            # silence or far too long
+        return _clarify_payload(parsed), 200
+    if directory is None:
+        return _say('unsupported', MESSAGES['unsupported'], intent='call'), 200
+    return _propose_call(confirmations, directory, user_id, clean_task(text), now)
 
 
 def _handle_time_answer(confirmations, user_id, text, task, now):
@@ -172,7 +257,7 @@ def _handle_time_answer(confirmations, user_id, text, task, now):
                              when['assumed_today'], now)
 
 
-def _handle_reply(confirmations, user_id, text, pending_id, now):
+def _handle_reply(confirmations, user_id, text, pending_id, now, directory=None):
     verdict = classify_reply(text)
     if verdict != 'yes':
         # Maybe the user is correcting the read-back with a complete new command.
@@ -180,6 +265,10 @@ def _handle_reply(confirmations, user_id, text, pending_id, now):
         if parsed['intent'] == 'reminder' and parsed['status'] == 'ok':
             return _propose_reminder(confirmations, user_id, parsed['task'], parsed['remind_at'],
                                      parsed['assumed_today'], now, replaces=pending_id)
+        if parsed['intent'] == 'call' and parsed.get('target') and directory is not None:
+            # "না, মেয়েকে ফোন করো": the old read-back is void, a new one is read back.
+            confirmations.cancel(user_id, pending_id, now=now)
+            return _propose_call(confirmations, directory, user_id, parsed['target'], now)
         if verdict == 'unclear':
             if parsed['intent'] == 'reminder':       # incomplete correction: old read-back is void
                 confirmations.cancel(user_id, pending_id, now=now)
@@ -188,13 +277,18 @@ def _handle_reply(confirmations, user_id, text, pending_id, now):
                 return _say('control', MESSAGES['silent'], intent=parsed['intent'],
                             action=parsed['intent'], pending_id=pending_id), 200
     released = confirmations.reply(user_id, pending_id, text, now=now)
-    return _from_confirmation(confirmations, user_id, released, now)
+    return _from_confirmation(confirmations, user_id, released, now, directory)
 
 
-def handle_voice_command(confirmations, user_id, text, pending_id=None, task=None, now=None):
+def handle_voice_command(confirmations, user_id, text, pending_id=None, task=None, now=None,
+                         awaiting=None, directory=None):
+    """directory gives access to the user's contacts and messages (see services/directory.py).
+    Without one, call and read-message commands answer "not available yet"."""
     now = now or datetime.now(UTC)
     if pending_id is not None:
-        return _handle_reply(confirmations, user_id, text, pending_id, now)
+        return _handle_reply(confirmations, user_id, text, pending_id, now, directory)
     if task is not None:
         return _handle_time_answer(confirmations, user_id, text, task, now)
-    return _handle_new_command(confirmations, user_id, text, now)
+    if awaiting == 'contact':
+        return _handle_contact_answer(confirmations, user_id, text, now, directory)
+    return _handle_new_command(confirmations, user_id, text, now, directory)

@@ -7,7 +7,7 @@ import re
 import unicodedata
 
 from app.services.bangla_datetime import (
-    parse_datetime, TODAY, TOMORROW, DAY_AFTER, PERIODS,
+    parse_datetime, words_to_digits, TODAY, TOMORROW, DAY_AFTER, PERIODS,
 )
 
 MAX_TEXT_LENGTH = 300
@@ -33,7 +33,7 @@ RULES = {
          ['কর*', 'লাগা*', 'দাও', 'দিন', 'call', 'phone', 'dial']],
     ],
     'repeat': [
-        [['আবার', 'পুনরায়'], ['বল*', 'শোনা*']],
+        [['আবার', 'আবারও', 'পুনরায়'], ['বল*', 'শোনা*']],
         [['repeat']],
         [['say', 'speak'], ['again']],
     ],
@@ -51,7 +51,9 @@ _REMINDER_WORDS = {'মনে', 'করিয়ে', 'করাও', 'করা
                    'দিবে', 'দেবে', 'রিমাইন্ডার', 'reminder', 'remind', 'set', 'সেট'}
 _FILLER = {'me', 'to', 'that', 'at', 'on', 'please', 'a', 'my', 'the',
            'আমাকে', 'আমায়', 'প্লিজ', 'করো', 'করুন', 'কর'}
-_CALL_WORDS = {'কল', 'call', 'phone', 'dial', 'দাও', 'দিন'}
+_CALL_WORDS = {'কল', 'call', 'phone', 'dial', 'দাও', 'দিন', 'দিও', 'একটা', 'লাগাও', 'লাগান',
+               'ফোন', 'ফোনে', 'ফোনটা', 'কর', 'করো', 'করুন', 'করে', 'করি', 'করব', 'করবো', 'করতে',
+               'চাই', 'to', 'up', 'make'}
 
 _TIME_TOKEN = re.compile(r'^\d{1,2}([:.]\d{2})?(টায়|টা)$|^\d{1,2}[:.]\d{2}$')
 _NUMBER = re.compile(r'^\d{1,2}$')
@@ -80,7 +82,7 @@ def _clarify(intent, code):
 def normalize(text):
     """NFC, Bangla digits -> ASCII, lowercase, danda and punctuation -> spaces."""
     t = unicodedata.normalize('NFC', text or '').translate(_BN_DIGITS).lower()
-    return re.sub(r'[।?!,;"\'()]', ' ', t)
+    return re.sub(r'[।?!,;"\'()]', ' ', words_to_digits(t))
 
 
 def tokenize(text):
@@ -133,9 +135,8 @@ def _extract_task(tokens):
 
 
 def _extract_call_target(tokens):
-    return ' '.join(t for t in tokens
-                    if t not in _CALL_WORDS and not t.startswith('ফোন')
-                    and not t.startswith('কর') and t not in _FILLER)
+    # Whole-word matches only: a prefix test would also delete names such as "করিম".
+    return ' '.join(t for t in tokens if t not in _CALL_WORDS and t not in _FILLER)
 
 
 def interpret(text, now=None):

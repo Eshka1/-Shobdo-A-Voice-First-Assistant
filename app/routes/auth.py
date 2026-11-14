@@ -1,11 +1,13 @@
 import os
+import secrets
 import bcrypt
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import generate_csrf
 from pymongo.errors import DuplicateKeyError
 from app.extensions import mongo, limiter
 from app.models.user import User, LoginUser
+from app.services.demo_data import seed_demo_data
 from app.utils.validators import validate_register, validate_login
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
@@ -69,6 +71,38 @@ def login():
     session.permanent = True
     return jsonify({'user': User.to_json(user),
                     'csrf_token': generate_csrf()}), 200
+
+
+@auth_bp.route('/demo-login', methods=['POST'])
+@limiter.limit('10 per minute')
+def demo_login():
+    """Sign the browser in as the shared demo user, with no password typed.
+
+    Exists so the demo page does not need a login form (the target users cannot type one).
+    It only works when DEMO_LOGIN_ENABLED=true is set on the server; otherwise it answers 404
+    exactly like a route that does not exist. The request body is ignored: the browser cannot
+    choose which account it gets, and the demo user is always an ordinary 'user', never admin.
+    """
+    if not current_app.config.get('DEMO_LOGIN_ENABLED'):
+        abort(404)
+
+    email = current_app.config['DEMO_USER_EMAIL']
+    user = User.find_by_email(email)
+    if user is None:
+        try:
+            # Random password that nobody knows: the normal /login can never open this account.
+            User.create('Demo User', email, secrets.token_urlsafe(32), 'user')
+        except DuplicateKeyError:
+            pass                      # another request created it a moment ago
+        user = User.find_by_email(email)
+    if user is None or user.get('role') != 'user':
+        return jsonify({'error': 'Demo sign-in is not available'}), 503
+
+    seed_demo_data(str(user['_id']))
+    session.clear()
+    login_user(LoginUser(user), remember=False)
+    session.permanent = True
+    return jsonify({'user': User.to_json(user), 'csrf_token': generate_csrf()}), 200
 
 
 @auth_bp.route('/logout', methods=['POST'])
