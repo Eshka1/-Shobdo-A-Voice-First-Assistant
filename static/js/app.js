@@ -1,3 +1,17 @@
+let csrfToken = "";
+
+async function api(path, method = "GET", body) {
+    if (method !== "GET" && !csrfToken) {
+        const r = await fetch("/api/auth/csrf-token");
+        csrfToken = (await r.json()).csrf_token;
+    }
+    const response = await fetch(path, {
+        method,
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+        body: body ? JSON.stringify(body) : undefined
+    });
+    return { ok: response.ok, status: response.status, data: await response.json() };
+}
 const micBtn = document.getElementById("mic-btn");
 const statusEl = document.getElementById("status");
 const form = document.getElementById("command-form");
@@ -110,6 +124,7 @@ function applyLanguage(lang) {
     lastSpoken = "";
     statusEl.textContent = "";
     localStorage.setItem("shobdo-lang", lang);
+    loadReminders();
 }
 
 function speak(text) {
@@ -154,7 +169,7 @@ function startListening() {
         const heard = event.results[0][0].transcript;
         console.log("Heard:", heard, "confidence:", event.results[0][0].confidence);
         statusEl.textContent = t("heard") + heard;
-        speak(t("heard") + heard);
+        sendCommand(heard);
     };
 
     recognition.onerror = (event) => {
@@ -214,12 +229,97 @@ form.addEventListener("submit", (event) => {
     }
 
     statusEl.textContent = t("youTyped") + text;
-    speak(text);
+    sendCommand(text);
     input.value = "";
 });
+const listEl = document.getElementById("reminder-list");
 
+function formatTime(iso) {
+    return new Date(iso).toLocaleString(currentLang === "bn" ? "bn-BD" : "en-US",
+        { weekday: "long", hour: "numeric", minute: "2-digit" });
+}
+function actionButton(label, id, action) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn action-btn" + (action === "cancel" ? " action-cancel" : "");
+    btn.textContent = label;
+    btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        await api("/api/reminders/" + id + "/" + action, "POST");
+        loadReminders();
+    });
+    return btn;
+}
+function buildCard(r) {
+    const card = document.createElement("div");
+    card.className = "neu-card reminder-card mb-4";
+
+    const task = document.createElement("div");
+    task.className = "reminder-task";
+    task.textContent = r.title;
+
+    const time = document.createElement("div");
+    time.className = "reminder-time";
+    time.textContent = formatTime(r.remind_at);
+
+    const row = document.createElement("div");
+    row.className = "d-flex gap-2 mt-3";
+    row.append(actionButton(t("done"), r.id, "complete"),
+        actionButton(t("cancel"), r.id, "cancel"));
+
+    card.append(task, time, row);
+    return card;
+}
+
+async function loadReminders() {
+    const res = await api("/api/reminders?status=pending");
+    listEl.replaceChildren();
+    if (!res.ok || res.data.reminders.length === 0) {
+        const p = document.createElement("p");
+        p.className = "text-center fs-5";
+        p.textContent = t("noReminders");
+        listEl.append(p);
+        return;
+    }
+    res.data.reminders.forEach((r) => listEl.append(buildCard(r)));
+}
+async function checkDue() {
+    // Chrome will not speak until the user has tapped the page once
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+
+    const res = await api("/api/reminders/due");
+    if (!res.ok || res.data.reminders.length === 0) return;
+
+    const titles = res.data.reminders.map((r) => r.title).join(". ");
+    const text = (currentLang === "bn" ? "রিমাইন্ডার: " : "Reminder: ") + titles;
+    statusEl.textContent = text;
+    speak(text);
+
+    for (const r of res.data.reminders) {
+        await api("/api/reminders/" + r.id + "/ack", "POST");
+    }
+}
+let pendingId = null;
+
+async function sendCommand(text) {
+    const res = await api("/api/voice-command", "POST",
+        { text: text, lang: currentLang, pending_id: pendingId });
+    if (!res.ok) {
+        pendingId = null;
+        statusEl.textContent = t("micError");
+        speak(t("micError"));
+        return;
+    }
+    const d = res.data;
+    const reply = currentLang === "bn" ? d.message_bn : d.message_en;
+    pendingId = d.state === "confirm" ? d.pending_id : null;
+    statusEl.textContent = reply;
+    speak(reply);
+    if (d.state === "done" || d.state === "cancelled") loadReminders();
+}
 // On page load: restore the last chosen language
 if (localStorage.getItem("shobdo-lang") === "bn") {
     document.getElementById("lang-bn").checked = true;
 }
 applyLanguage(getLanguage());
+setInterval(checkDue, 30000);
